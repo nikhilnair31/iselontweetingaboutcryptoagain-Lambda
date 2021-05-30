@@ -8,6 +8,7 @@
 ## Run the following to Deploy
 * `docker build -t <container_name> .`
 * `docker run -d -p 8080:8080 <container_name>`
+* Test with `curl -XPOST "http://localhost:8080/2015-03-31/functions/function/invocations" -d """{id:123}""" ` in command prompt
 * `aws ecr create-repository --repository-name <repository_name>`
 * `docker tag <repository_name>:<container_tag> 832214191436.dkr.ecr.ap-south-1.amazonaws.com/lambda-docker-fire:<container_tag>`
 * `aws ecr get-login-password | docker login --username AWS --password-stdin 832214191436.dkr.ecr.ap-south-1.amazonaws.com`
