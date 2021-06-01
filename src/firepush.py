@@ -1,4 +1,5 @@
 import json
+import logging
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
 
@@ -7,6 +8,8 @@ firebase_admin.initialize_app(cred, {'storageBucket': 'crypto-musk.appspot.com' 
 db = firestore.client()
 
 tweetdictlist = []
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 def firestore_del():
     print('Deleting documents one by one')
@@ -20,10 +23,12 @@ def firestore_push(obj):
 def storagedel():
     bucket = storage.bucket()
     blob = bucket.blob('tweetdictlist.json')
+    logger.info(f'blob.exists(): {blob.exists()}')
     if blob.exists():
         blob.delete()
     
 def objToDict(tweetObj):
+    logger.info(f'tweetObj: {tweetObj}')
     tweetdictlist.append(tweetObj)
 
 def uploadToStorage():
@@ -37,8 +42,17 @@ def handler(event, context):
     # for obj in event:
     #     firestore_push(obj)
 
+    logger.info(f'event: {event}\n\n')
+
+    recieved_data = []
+
+    if type(event) is dict:
+        recieved_data = event.responsePayload.body
+    elif type(event) == list:
+        recieved_data = event
+    
     storagedel()
-    for obj in event:
+    for obj in recieved_data:
         objToDict(obj)
     with open('/tmp/tweetdictlist.json', 'w') as f:
         json.dump(tweetdictlist , f)
