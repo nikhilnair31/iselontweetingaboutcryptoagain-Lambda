@@ -47,7 +47,7 @@ def handler(event, context):
     recieved_data = []
 
     if type(event) is dict:
-        recieved_data = event.responsePayload.body
+        recieved_data = event.responsePayload.body #event["responsePayload"]["body"] maybe?
     elif type(event) == list:
         recieved_data = event
     
