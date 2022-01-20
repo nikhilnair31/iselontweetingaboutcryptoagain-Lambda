@@ -1,44 +1,61 @@
+import re
 import json
 import twint
 import logging
 import firebase_admin
-from firebase_admin import credentials, db, firestore, storage
+from firebase_admin import credentials, db, firestore
 
-cred = credentials.Certificate('./keys/crypto-musk-firebase-adminsdk-ay1ha-12d4e67ca9.json')
-# firebase_admin.initialize_app(cred, {'storageBucket': 'crypto-musk.appspot.com' })
+cred = credentials.Certificate('./crypto-musk-firebase-adminsdk-ay1ha-12d4e67ca9.json')
 firebase_admin.initialize_app(cred, {'databaseURL': 'https://crypto-musk-default-rtdb.asia-southeast1.firebasedatabase.app/'})
 ref = db.reference('tweets')
 db = firestore.client()
 
 tweetdictlist = []
+matches = ['shiba' , 'doge' , 'dogecoin' , 'bitcoin' , 'btc' , 'ethereum' , 'crypto' , 'cryptocurrency']
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# Firebase storage thing
-def storagedel():
-    bucket = storage.bucket()
-    blob = bucket.blob('tweetdictlist.json')
-    logger.info(f'blob.exists(): {blob.exists()}')
-    if blob.exists():
-        blob.delete()
-def objToDict(tweetObj):
-    logger.info(f'tweetObj: {tweetObj}')
-    tweetdictlist.append(tweetObj)
-def uploadToStorage():
-    bucket = storage.bucket()
-    blob = bucket.blob('tweetdictlist.json')
-    outfile='/tmp/tweetdictlist.json'
-    blob.upload_from_filename(outfile)
-  
+def cleantweet(tweet): 
+    # print('cleantweet\n')
+    cleantweet = ''
+    cleantweet = tweet.replace("&amp;", "&")
+    usernameremovedtweet = re.sub(r'@\w+', '', cleantweet)
+    if any(x in usernameremovedtweet for x in matches):
+        return cleantweet
+    else:
+        return False
+
 # Firebase RTDB
-def nukeRTDB(): 
-    print('deleted full RTDB')
-    ref.delete()
-def saveToRTDB(jsonarray): 
-    nukeRTDB()
-    for obj in jsonarray:
+def getDataAndCheck(existingdata, newlypulleddataarr): 
+    print('getDataAndCheck\n\n')
+    insertlist = []
+    for newitem in newlypulleddataarr:
+        result = any(newitem["tweet"] in d.values() for d in existingdata.values())
+        print(f'newitem: {newitem} - result: {result}')
+        if(result == True): continue
+        else:
+            if(cleantweet(newitem["tweet"]) != False):
+                newitem["tweet"] = cleantweet(newitem["tweet"])
+                insertlist.append(newitem)
+    return insertlist
+def saveToRTDB(newlypulleddataarr): 
+    existingdata = ref.get()
+    print(f'existingdata: {existingdata}\n')
+
+    if(existingdata != None):
+        print(f'len(existingdata): {len(existingdata)} - len(newlypulleddataarr): {len(newlypulleddataarr)}\n')
+        insertablearr = getDataAndCheck(existingdata, newlypulleddataarr)
+    else:
+        insertlist = []
+        for newitem in newlypulleddataarr:
+            if(cleantweet(newitem["tweet"]) != False):
+                newitem["tweet"] = cleantweet(newitem["tweet"])
+                insertlist.append(newitem)
+        insertablearr = newlypulleddataarr
+        
+    for obj in insertablearr:
         ref.push().set(obj)
-    print('saved to RTDB')
+    print('saveToRTDB')
 
 # Main Twint func
 def tweet_handler(): 
@@ -58,7 +75,7 @@ def tweet_handler():
     twint.run.Search(config)
 
     for tweet in tweets:
-        print ('Tweet: {}'.format(tweet))
+        # print ('Tweet: {}'.format(tweet))
         full_tweet_data.append({
             'id': tweet.id,
             'user_id': tweet.user_id, 
@@ -81,20 +98,14 @@ def handler(event, context):
     print(f'event: {event}\n\n')
     logger.info(f'event: {event}\n\n')
 
+    # ref.delete()
+
     recieved_data = []
     if type(event) is dict:
         recieved_data = event["body"] # event.responsePayload.body #event["responsePayload"]["body"] maybe?
     elif type(event) == list:
         recieved_data = event
-
     saveToRTDB(recieved_data)
-    
-    # storagedel()
-    # for obj in recieved_data:
-    #     objToDict(obj)
-    # with open('/tmp/tweetdictlist.json', 'w') as f:
-    #     json.dump(tweetdictlist , f)
-    # uploadToStorage() 
 
     return {
         'statusCode': 200,
