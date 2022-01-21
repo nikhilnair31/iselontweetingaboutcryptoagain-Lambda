@@ -30,12 +30,13 @@ def getDataAndCheck(existingdata, newlypulleddataarr):
     print('getDataAndCheck\n\n')
     insertlist = []
     for newitem in newlypulleddataarr:
-        result = any(newitem["tweet"] in d.values() for d in existingdata.values())
+        result = any(cleantweet(newitem["tweet"]) in d.values() for d in existingdata.values())
         print(f'newitem: {newitem} - result: {result}')
         if(result == True): continue
         else:
             if(cleantweet(newitem["tweet"]) != False):
                 newitem["tweet"] = cleantweet(newitem["tweet"])
+                print(f'newitem["tweet"] : {newitem["tweet"] }')
                 insertlist.append(newitem)
     return insertlist
 def saveToRTDB(newlypulleddataarr): 
